@@ -28,8 +28,8 @@ async function scrapeImagesFromCode(code) {
       const imageUrl = $(element).attr("data-src");
       if (imageUrl) {
         const bigImageUrl = imageUrl.replace(
-          /^https:\/\/t(\d)\.nhentai\.net\/galleries\/(\d+)\/(\d+)t\.jpg/i,
-          "https://i$1.nhentai.net/galleries/$2/$3.jpg"
+          /^https:\/\/t(\d)\.nhentai\.net\/galleries\/(\d+)\/(\d+)t\.(jpg|webp|png)/i,
+          "https://i$1.nhentai.net/galleries/$2/$3.$4"
         );
         await limitFn(() => downloadImage(dir, bigImageUrl));
       }
@@ -49,28 +49,32 @@ function ensureDirectoryExistence(filePath) {
 
 // 下載圖片
 async function downloadImage(dir, url) {
-  const response = await axios({
-    url,
-    responseType: "stream",
-  });
-
-  const fileName = path.basename(url);
-  const filePath = path.join("galleries", dir, fileName);
-
-  ensureDirectoryExistence(filePath);
-
-  // 儲存圖片
-  const writer = fs.createWriteStream(filePath);
-  response.data.pipe(writer);
-
-  // 確保正確儲存
-  return new Promise((resolve, reject) => {
-    writer.on("finish", () => {
-      console.log(`Download ${filePath} complete.`);
-      resolve(true);
+  try {
+    const response = await axios({
+      url,
+      responseType: "stream",
     });
-    writer.on("error", reject);
-  });
+
+    const fileName = path.basename(url);
+    const filePath = path.join("galleries", dir, fileName);
+
+    ensureDirectoryExistence(filePath);
+
+    // 儲存圖片
+    const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
+
+    // 確保正確儲存
+    return new Promise((resolve, reject) => {
+      writer.on("finish", () => {
+        console.log(`Download ${filePath} complete.`);
+        resolve(true);
+      });
+      writer.on("error", reject);
+    });
+  } catch (error) {
+    console.error(`Error download images from ${url}:`, error);
+  }
 }
 
 // 處理所有網址
